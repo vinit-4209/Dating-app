@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Upload, X } from 'lucide-react';
 
@@ -17,6 +18,7 @@ export default function CreateProfile() {
     education: '',
     occupation: ''
   });
+  const navigate = useNavigate();
 
   const handleInputChange = (e) => {
     setFormData({
@@ -57,6 +59,8 @@ export default function CreateProfile() {
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    } else {
+      navigate('/auth?mode=login');
     }
   };
 
@@ -70,9 +74,17 @@ export default function CreateProfile() {
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 flex items-center justify-center p-4">
       <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl p-8 md:p-12">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Create your profile</h1>
-          <p className="text-gray-500 text-lg">Step {currentStep} of {totalSteps}</p>
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Create your profile</h1>
+            <p className="text-gray-500 text-lg">Step {currentStep} of {totalSteps}</p>
+          </div>
+          <button
+            onClick={() => navigate('/auth?mode=login')}
+            className="px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-all"
+          >
+            Back to login
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState('signup');
@@ -9,6 +10,22 @@ export default function AuthPage() {
     password: '',
     confirmPassword: ''
   });
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    if (mode === 'login' || mode === 'signup') {
+      setActiveTab(mode);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (location.state?.email) {
+      setFormData(prev => ({ ...prev, email: location.state.email }));
+    }
+  }, [location.state]);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -22,7 +39,11 @@ export default function AuthPage() {
   };
 
   const handleLogin = () => {
-    console.log('Login submitted');
+    navigate('/create-profile');
+  };
+
+  const goToProfileCreation = () => {
+    navigate('/create-profile');
   };
 
   return (
@@ -191,9 +212,16 @@ export default function AuthPage() {
               <button className="text-blue-600 font-semibold hover:underline mb-4 block">
                 Resend email
               </button>
-              
+
               <button className="w-full border-2 border-pink-500 text-pink-600 py-3 rounded-full font-semibold hover:bg-pink-50 transition-all">
                 Change email
+              </button>
+
+              <button
+                onClick={goToProfileCreation}
+                className="mt-4 w-full bg-gradient-to-r from-orange-400 via-pink-500 to-pink-600 text-white py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all"
+              >
+                Go to profile setup
               </button>
 
               <p className="text-gray-500 text-sm mt-6 text-center">
