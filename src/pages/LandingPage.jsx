@@ -1,12 +1,20 @@
+import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Heart, MessageCircle, Sparkles, Shield, Users, Zap, Star, MapPin, Camera, Clock } from 'lucide-react';
 
 
 export default function LandingPage() {
   const [email, setEmail] = useState('');
+  const navigate = useNavigate();
 
   const handleGetStarted = () => {
-    console.log('Getting started with:', email);
+    navigate('/auth?mode=signup', {
+      state: { email }
+    });
+  };
+
+  const goToAuth = (mode) => {
+    navigate(`/auth?mode=${mode}`);
   };
 
   return (
@@ -24,10 +32,16 @@ export default function LandingPage() {
             <a href="#features" className="text-gray-600 hover:text-pink-500 transition-colors font-medium">Features</a>
             <a href="#how-it-works" className="text-gray-600 hover:text-pink-500 transition-colors font-medium">How it Works</a>
             <a href="#testimonials" className="text-gray-600 hover:text-pink-500 transition-colors font-medium">Stories</a>
-            <button className="px-6 py-2 text-pink-500 font-semibold hover:bg-pink-50 rounded-full transition-all">
+            <button
+              onClick={() => goToAuth('login')}
+              className="px-6 py-2 text-pink-500 font-semibold hover:bg-pink-50 rounded-full transition-all"
+            >
               Log in
             </button>
-            <button className="px-6 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold rounded-full hover:shadow-lg transition-all">
+            <button
+              onClick={() => goToAuth('signup')}
+              className="px-6 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold rounded-full hover:shadow-lg transition-all"
+            >
               Sign up
             </button>
           </div>
