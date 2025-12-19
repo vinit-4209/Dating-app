@@ -345,7 +345,9 @@ export default function LandingPage() {
           <p className="text-xl text-pink-100 mb-8">
             Join millions of singles finding meaningful connections on LoveConnect
           </p>
-          <button className="px-12 py-5 bg-white text-pink-600 font-bold text-lg rounded-full hover:shadow-2xl transition-all hover:scale-105">
+          
+          <button 
+          onClick={handleGetStarted} className="px-12 py-5 bg-white text-pink-600 font-bold text-lg rounded-full hover:shadow-2xl transition-all hover:scale-105">
             Get Started for Free
           </button>
           <p className="text-pink-100 mt-4">No credit card required • Free forever</p>

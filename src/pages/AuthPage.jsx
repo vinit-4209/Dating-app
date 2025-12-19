@@ -49,10 +49,7 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 flex items-center justify-center p-4">
       <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative">
-        {/* Aspect Ratio Indicator */}
-        <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full text-sm font-semibold text-gray-700 shadow-md z-10">
-          16:9
-        </div>
+        
 
         {/* Left Section - Form */}
         <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
