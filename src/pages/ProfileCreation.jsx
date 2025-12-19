@@ -20,6 +20,11 @@ export default function CreateProfile() {
   });
   const navigate = useNavigate();
 
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    navigate('/auth?mode=login');
+  };
+
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
@@ -79,12 +84,20 @@ export default function CreateProfile() {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Create your profile</h1>
             <p className="text-gray-500 text-lg">Step {currentStep} of {totalSteps}</p>
           </div>
-          <button
-            onClick={() => navigate('/auth?mode=login')}
-            className="px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-all"
-          >
-            Back to login
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => navigate('/auth?mode=login')}
+              className="px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-all"
+            >
+              Back to login
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full font-semibold shadow-lg hover:shadow-xl transition-all"
+            >
+              Log out
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
