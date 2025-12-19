@@ -110,6 +110,23 @@ export default function CreateProfile() {
       setStatus('Saved locally. Log in to sync with the server.');
       navigate('/discover');
     }
+
+    const { interestsText, ...rest } = formData;
+    const derivedInterests = interestsText
+      ? interestsText
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : formData.interests;
+
+    const payload = {
+      ...rest,
+      interests: derivedInterests,
+      photos: photos.map((photo) => photo.url)
+    };
+
+    localStorage.setItem('profileData', JSON.stringify(payload));
+    navigate('/discover');
   };
 
   return (
