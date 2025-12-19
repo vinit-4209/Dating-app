@@ -24,10 +24,12 @@ app.use(express.json());
 
 async function connectDB() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+    // await mongoose.connect(process.env.MONGODB_URI, {
+    //   useNewUrlParser: true,
+    //   useUnifiedTopology: true
+    // });
+    mongoose.connect(process.env.MONGODB_URI);
+
     console.log('✅ Connected to MongoDB');
   } catch (error) {
     console.error('MongoDB connection error:', error.message);
@@ -152,10 +154,13 @@ app.post('/api/auth/logout', async (_req, res) => {
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
+  console.log('Health check OK');
+  
 });
 
 connectDB().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
+
   });
 });
