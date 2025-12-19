@@ -6,6 +6,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from './models/User.js';
+import Profile from './models/Profile.js';
+import Match from './models/Match.js';
+import Message from './models/Message.js';
 import { sendVerificationEmail } from './utils/sendEmail.js';
 
 dotenv.config();
@@ -13,6 +16,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 app.use(
   cors({
@@ -21,6 +25,23 @@ app.use(
   })
 );
 app.use(express.json());
+
+function requireAuth(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Authorization token missing.' });
+  }
+
+  const token = header.split(' ')[1];
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid or expired token.' });
+  }
+}
 
 async function connectDB() {
   try {
@@ -137,7 +158,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ message: 'Incorrect password.' });
     }
 
-    const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET || 'dev-secret', {
+    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, {
       expiresIn: '1h'
     });
 
@@ -150,6 +171,152 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/auth/logout', async (_req, res) => {
   res.json({ message: 'Logged out successfully.' });
+});
+
+app.get('/api/profile', requireAuth, async (req, res) => {
+  try {
+    const profile = await Profile.findOne({ userId: req.user.id });
+    res.json({ profile: profile || null });
+  } catch (error) {
+    console.error('Fetch profile error:', error);
+    res.status(500).json({ message: 'Unable to fetch profile.' });
+  }
+});
+
+app.post('/api/profile', requireAuth, async (req, res) => {
+  try {
+    const payload = req.body;
+
+    const profile = await Profile.findOneAndUpdate(
+      { userId: req.user.id },
+      { ...payload, userId: req.user.id },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({ profile, message: 'Profile saved.' });
+  } catch (error) {
+    console.error('Save profile error:', error);
+    res.status(500).json({ message: 'Unable to save profile.' });
+  }
+});
+
+app.get('/api/discover', requireAuth, async (req, res) => {
+  try {
+    const myId = req.user.id;
+    const profiles = await Profile.find({ userId: { $ne: myId } }).limit(50);
+    res.json({ profiles });
+  } catch (error) {
+    console.error('Discover fetch error:', error);
+    res.status(500).json({ message: 'Unable to load matches.' });
+  }
+});
+
+app.get('/api/match', requireAuth, async (req, res) => {
+  try {
+    const myId = req.user.id;
+    const matches = await Match.find({ participants: myId }).lean();
+    const partnerIds = matches.map((m) => m.participants.find((p) => String(p) !== String(myId)));
+    const profiles = await Profile.find({ userId: { $in: partnerIds } }).lean();
+    const profileMap = profiles.reduce((acc, p) => ({ ...acc, [String(p.userId)]: p }), {});
+
+    const hydrated = matches.map((match) => {
+      const partnerId = match.participants.find((p) => String(p) !== String(myId));
+      const partnerProfile = profileMap[partnerId ? String(partnerId) : ''];
+
+      return {
+        ...match,
+        with: partnerProfile ? { ...partnerProfile, id: partnerProfile.userId } : null
+      };
+    });
+
+    res.json({ matches: hydrated });
+  } catch (error) {
+    console.error('Match fetch error:', error);
+    res.status(500).json({ message: 'Unable to load matches.' });
+  }
+});
+
+app.post('/api/match/request', requireAuth, async (req, res) => {
+  try {
+    const { targetId } = req.body;
+    if (!targetId) {
+      return res.status(400).json({ message: 'Target profile required.' });
+    }
+
+    const existing = await Match.findOne({ participants: { $all: [req.user.id, targetId] } });
+    if (existing) {
+      return res.json({ match: existing, message: 'Match already exists.' });
+    }
+
+    const match = await Match.create({
+      participants: [req.user.id, targetId],
+      status: 'pending',
+      requestedBy: req.user.id
+    });
+
+    res.json({ match, message: 'Request sent.' });
+  } catch (error) {
+    console.error('Request match error:', error);
+    res.status(500).json({ message: 'Unable to send request.' });
+  }
+});
+
+app.post('/api/match/respond', requireAuth, async (req, res) => {
+  try {
+    const { matchId, action } = req.body;
+    const match = await Match.findById(matchId);
+
+    if (!match || !match.participants.includes(req.user.id)) {
+      return res.status(404).json({ message: 'Match not found.' });
+    }
+
+    if (action === 'accept') {
+      match.status = 'accepted';
+    } else if (action === 'decline') {
+      match.status = 'declined';
+    }
+
+    await match.save();
+    res.json({ match, message: `Request ${action}ed.` });
+  } catch (error) {
+    console.error('Respond match error:', error);
+    res.status(500).json({ message: 'Unable to update request.' });
+  }
+});
+
+app.get('/api/messages/:matchId', requireAuth, async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.matchId);
+    if (!match || !match.participants.includes(req.user.id)) {
+      return res.status(404).json({ message: 'Match not found.' });
+    }
+
+    const messages = await Message.find({ matchId: match._id }).sort({ createdAt: 1 });
+    res.json({ messages });
+  } catch (error) {
+    console.error('Fetch messages error:', error);
+    res.status(500).json({ message: 'Unable to load messages.' });
+  }
+});
+
+app.post('/api/messages/:matchId', requireAuth, async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.matchId);
+    if (!match || match.status !== 'accepted' || !match.participants.includes(req.user.id)) {
+      return res.status(400).json({ message: 'Chat is locked until both sides accept.' });
+    }
+
+    const message = await Message.create({
+      matchId: match._id,
+      senderId: req.user.id,
+      text: req.body.text
+    });
+
+    res.json({ message });
+  } catch (error) {
+    console.error('Send message error:', error);
+    res.status(500).json({ message: 'Unable to send message.' });
+  }
 });
 
 app.get('/health', (_req, res) => {

@@ -1,16 +1,20 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Upload, X } from 'lucide-react';
+import Navbar from '../components/Navbar';
+import { saveProfile } from '../utils/api';
 
 export default function CreateProfile() {
-  const [currentStep, setCurrentStep] = useState(2);
+  const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
   const [photos, setPhotos] = useState([]);
+  const [status, setStatus] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     age: '',
     city: '',
     pronouns: '',
+    interestsText: '',
     bio: '',
     interests: [],
     lookingFor: '',
@@ -72,12 +76,52 @@ export default function CreateProfile() {
   const handleNext = () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
+      return;
+    }
+
+    const { interestsText, ...rest } = formData;
+    const derivedInterests = interestsText
+      ? interestsText
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : formData.interests;
+
+    const payload = {
+      ...rest,
+      interests: derivedInterests,
+      photos: photos.map((photo) => photo.url)
+    };
+    localStorage.setItem('profileData', JSON.stringify(payload));
+
+    const token = localStorage.getItem('authToken');
+
+    if (token) {
+      saveProfile(payload)
+        .then(() => {
+          setStatus('Profile saved to the server.');
+          navigate('/discover');
+        })
+        .catch(() => {
+          setStatus('Saved locally, but unable to reach the server.');
+          navigate('/discover');
+        });
+    } else {
+      setStatus('Saved locally. Log in to sync with the server.');
+      navigate('/discover');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl p-8 md:p-12">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100">
+      <Navbar />
+      <div className="w-full max-w-5xl mx-auto px-4 pt-24 pb-10 flex items-center justify-center">
+        <div className="w-full bg-white rounded-3xl shadow-2xl p-8 md:p-12">
+        {status && (
+          <div className="mb-4 rounded-xl bg-blue-50 text-blue-800 px-4 py-3 text-sm font-semibold border border-blue-100">
+            {status}
+          </div>
+        )}
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -151,6 +195,20 @@ export default function CreateProfile() {
                 onChange={handleInputChange}
                 className="w-full px-6 py-3 border-2 border-gray-200 rounded-full focus:outline-none focus:border-pink-400 transition-colors"
               />
+            </div>
+
+            {/* Interests */}
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2">Interests</label>
+              <input
+                type="text"
+                name="interestsText"
+                placeholder="e.g., hiking, coffee, museums"
+                value={formData.interestsText}
+                onChange={handleInputChange}
+                className="w-full px-6 py-3 border-2 border-gray-200 rounded-full focus:outline-none focus:border-pink-400 transition-colors"
+              />
+              <p className="text-sm text-gray-500 mt-2">Separate with commas to help us match you on what you love.</p>
             </div>
 
             {/* Bio */}
@@ -276,9 +334,10 @@ export default function CreateProfile() {
           <button
             onClick={handleNext}
             className="px-12 py-3 bg-gradient-to-r from-orange-400 via-pink-500 to-pink-600 text-white rounded-full font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
-          >
-            Continue
-          </button>
+            >
+              Continue
+            </button>
+          </div>
         </div>
       </div>
     </div>
