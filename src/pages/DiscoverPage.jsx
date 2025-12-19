@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Heart, Filter, MessageCircle, ShieldCheck, Check, X, Sparkles, BadgeCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import { getDiscover, getMatches, requestMatch, respondMatch } from '../utils/api';
 
 const profiles = [
   {
@@ -86,19 +87,75 @@ const loadConnections = () => {
 export default function DiscoverPage() {
   const navigate = useNavigate();
   const [selectedProfile, setSelectedProfile] = useState(profiles[0]);
+  const [remoteProfiles, setRemoteProfiles] = useState(profiles);
   const [minCompatibility, setMinCompatibility] = useState(85);
   const [bestMatchesFirst, setBestMatchesFirst] = useState(true);
   const savedConnections = loadConnections();
   const [engagements, setEngagements] = useState(savedConnections?.engagements ?? {});
   const [incomingRequests, setIncomingRequests] = useState(savedConnections?.incomingRequests ?? defaultRequests);
   const [conversations, setConversations] = useState(savedConnections?.conversations ?? {});
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('authToken') : null;
+
+  const viewerId = useMemo(() => {
+    if (!token) return null;
+    try {
+      const [, payload] = token.split('.');
+      const decoded = JSON.parse(atob(payload));
+      return decoded.id || null;
+    } catch (error) {
+      console.error('Unable to decode token', error);
+      return null;
+    }
+  }, [token]);
 
   useEffect(() => {
     localStorage.setItem('connections', JSON.stringify({ engagements, incomingRequests, conversations }));
   }, [conversations, engagements, incomingRequests]);
 
+  useEffect(() => {
+    if (!token) return;
+
+    getDiscover()
+      .then(({ profiles: fetched }) => {
+        if (Array.isArray(fetched) && fetched.length) {
+          const normalized = fetched.map((profile) => ({
+            ...profile,
+            id: profile.userId || profile._id
+          }));
+          setRemoteProfiles(normalized);
+          setSelectedProfile(normalized[0]);
+        }
+      })
+      .catch((error) => console.error('Unable to load discovery profiles', error));
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    getMatches()
+      .then(({ matches }) => {
+        const map = {};
+        const requests = [];
+        matches.forEach((match) => {
+          const partner = match.with ? { ...match.with, id: match.with.id } : null;
+          if (partner) {
+            map[partner.id] = { status: match.status, with: partner, matchId: match._id, requestedBy: match.requestedBy };
+            if (match.status === 'pending' && match.requestedBy !== viewerId) {
+              requests.push({ id: match._id, profileId: partner.id, message: `${partner.name || 'Someone'} wants to connect.` });
+            }
+          }
+        });
+        setEngagements(map);
+        if (requests.length) {
+          setIncomingRequests(requests);
+        }
+      })
+      .catch((error) => console.error('Unable to sync matches', error));
+  }, [token, viewerId]);
+
   const sortedProfiles = useMemo(() => {
-    const filtered = profiles.filter((profile) => profile.compatibility >= minCompatibility);
+    const pool = remoteProfiles?.length ? remoteProfiles : profiles;
+    const filtered = pool.filter((profile) => profile.compatibility >= minCompatibility);
 
     if (bestMatchesFirst) {
       return [...filtered].sort((a, b) => b.compatibility - a.compatibility);
@@ -137,6 +194,10 @@ export default function DiscoverPage() {
   const sendRequest = (profile) => {
     if (statusFor(profile.id) !== 'none') return;
 
+    if (token && profile.id) {
+      requestMatch(profile.id).catch((error) => console.error('Unable to send request', error));
+    }
+
     setEngagements((prev) => ({
       ...prev,
       [profile.id]: {
@@ -152,16 +213,23 @@ export default function DiscoverPage() {
       ...prev,
       [request.profileId]: {
         status: 'accepted',
-        with: profiles.find((p) => p.id === request.profileId) || { id: request.profileId }
+        with: remoteProfiles.find((p) => p.id === request.profileId) || profiles.find((p) => p.id === request.profileId) || { id: request.profileId }
       }
     }));
 
-    const profile = profiles.find((p) => p.id === request.profileId);
+    if (token && request.id) {
+      respondMatch(request.id, 'accept').catch((error) => console.error('Unable to accept request', error));
+    }
+
+    const profile = remoteProfiles.find((p) => p.id === request.profileId) || profiles.find((p) => p.id === request.profileId);
     ensureConversation(request.profileId, profile);
   };
 
   const declineRequest = (request) => {
     setIncomingRequests((prev) => prev.filter((item) => item.id !== request.id));
+    if (token && request.id) {
+      respondMatch(request.id, 'decline').catch((error) => console.error('Unable to decline request', error));
+    }
   };
 
   const canChat = (profile) => statusFor(profile.id) === 'accepted';
@@ -174,7 +242,7 @@ export default function DiscoverPage() {
     navigate('/chat');
   };
 
-  const conversationForSelected = conversations[selectedProfile.id] ?? [];
+  const conversationForSelected = conversations[selectedProfile?.id] ?? [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
@@ -332,7 +400,7 @@ export default function DiscoverPage() {
               )}
 
               {incomingRequests.map((request) => {
-                const profile = profiles.find((p) => p.id === request.profileId);
+                const profile = (remoteProfiles?.length ? remoteProfiles : profiles).find((p) => p.id === request.profileId);
 
                 return (
                   <div key={request.id} className="border border-gray-100 rounded-2xl p-4">

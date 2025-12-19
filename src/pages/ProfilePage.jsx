@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BadgeCheck, Edit3, MapPin, MessageCircle, Sparkles, Upload } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import { useNavigate } from 'react-router-dom';
+import { getProfile } from '../utils/api';
 
 const demoProfile = {
   name: 'You',
@@ -20,6 +21,7 @@ const demoProfile = {
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(demoProfile);
+  const [syncStatus, setSyncStatus] = useState('');
 
   useEffect(() => {
     const saved = localStorage.getItem('profileData');
@@ -30,6 +32,18 @@ export default function ProfilePage() {
       } catch (error) {
         console.error('Unable to parse saved profile', error);
       }
+    }
+
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      getProfile()
+        .then(({ profile: remote }) => {
+          if (remote) {
+            setProfile((prev) => ({ ...prev, ...remote }));
+            setSyncStatus('Synced with database.');
+          }
+        })
+        .catch(() => setSyncStatus('Using local profile — server unreachable.'));
     }
   }, []);
 
@@ -47,6 +61,7 @@ export default function ProfilePage() {
             </p>
             <h1 className="text-4xl font-bold text-gray-900">{profile.name || 'Complete your profile'}</h1>
             <p className="text-gray-600">Keep your details fresh so the right matches can find you.</p>
+            {syncStatus && <p className="text-xs text-gray-500">{syncStatus}</p>}
           </div>
           <div className="flex gap-3">
             <button

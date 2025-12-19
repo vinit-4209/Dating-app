@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock, MessageCircle, Send, ShieldCheck, Sparkles, User } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import { fetchMessages, getMatches, sendMessage as sendMessageApi } from '../utils/api';
 
 const loadConnections = () => {
   if (typeof localStorage === 'undefined') return null;
@@ -31,6 +32,17 @@ export default function ChatPage() {
     return stored ?? null;
   });
   const [draftMessage, setDraftMessage] = useState('');
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('authToken') : null;
+  const viewerId = useMemo(() => {
+    if (!token) return null;
+    try {
+      const [, payload] = token.split('.');
+      const decoded = JSON.parse(atob(payload));
+      return decoded.id || null;
+    } catch (error) {
+      return null;
+    }
+  }, [token]);
 
   const matches = useMemo(() => {
     return Object.values(engagements).filter((entry) => entry.status === 'accepted');
@@ -39,6 +51,40 @@ export default function ChatPage() {
   useEffect(() => {
     localStorage.setItem('connections', JSON.stringify({ engagements, conversations, incomingRequests: saved?.incomingRequests ?? [] }));
   }, [engagements, conversations]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    getMatches()
+      .then(({ matches }) => {
+        const map = {};
+        matches.forEach((match) => {
+          const key = match.with?.id ?? match._id;
+          map[key] = { status: match.status, with: match.with, matchId: match._id };
+        });
+        setEngagements(map);
+      })
+      .catch((error) => console.error('Unable to sync matches', error));
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !activeChatId) return;
+    const match = engagements[activeChatId];
+    if (!match?.matchId) return;
+
+    fetchMessages(match.matchId)
+      .then(({ messages }) => {
+        setConversations((prev) => ({
+          ...prev,
+          [activeChatId]: messages.map((message) => ({
+            from: message.senderId === viewerId ? 'you' : 'them',
+            text: message.text,
+            timestamp: message.createdAt
+          }))
+        }));
+      })
+      .catch((error) => console.error('Unable to load chat history', error));
+  }, [activeChatId, engagements, token, viewerId]);
 
   useEffect(() => {
     if (!activeChatId && matches.length) {
@@ -63,6 +109,13 @@ export default function ChatPage() {
     if (!draftMessage.trim() || !activeChatId) return;
 
     const timestamp = new Date().toISOString();
+    const match = engagements[activeChatId];
+
+    if (token && match?.matchId && match.status === 'accepted') {
+      sendMessageApi(match.matchId, draftMessage.trim()).catch((error) =>
+        console.error('Unable to send message to server', error)
+      );
+    }
     setConversations((prev) => ({
       ...prev,
       [activeChatId]: [...(prev[activeChatId] ?? [defaultMessage]), { from: 'you', text: draftMessage.trim(), timestamp }]
