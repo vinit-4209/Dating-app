@@ -1,0 +1,63 @@
+import { Heart } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+
+const links = [
+  { to: '/', label: 'Home' },
+  { to: '/discover', label: 'Discover' },
+  { to: '/create-profile', label: 'Create Profile' },
+  { to: '/chat', label: 'Chat' },
+  { to: '/profile', label: 'My Profile' }
+];
+
+export default function Navbar({ hideAuthButtons = false }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const isActive = (to) => location.pathname === to;
+
+  return (
+    <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-lg z-50 border-b border-pink-50 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
+        <button onClick={() => navigate('/')} className="flex items-center gap-2 group">
+          <Heart className="w-7 h-7 text-pink-500 group-hover:scale-110 transition-transform" />
+          <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+            LoveConnect
+          </span>
+        </button>
+
+        <div className="flex items-center gap-3 md:gap-8">
+          <div className="hidden md:flex items-center gap-6">
+            {links.map((link) => (
+              <button
+                key={link.to}
+                onClick={() => navigate(link.to)}
+                className={`text-sm font-semibold transition-colors ${
+                  isActive(link.to) ? 'text-pink-600' : 'text-gray-600 hover:text-pink-500'
+                }`}
+              >
+                {link.label}
+              </button>
+            ))}
+          </div>
+
+          {!hideAuthButtons && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/auth?mode=login')}
+                className="px-4 py-2 text-sm font-semibold text-pink-600 hover:text-pink-700"
+              >
+                Log in
+              </button>
+              <button
+                onClick={() => navigate('/auth?mode=signup')}
+                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm font-semibold rounded-full shadow-md hover:shadow-lg"
+              >
+                Sign up
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+}

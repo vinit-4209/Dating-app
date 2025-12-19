@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import Navbar from '../components/Navbar';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -39,8 +40,10 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl p-10 text-center">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100">
+      <Navbar hideAuthButtons />
+      <div className="w-full max-w-xl mx-auto px-4 pt-24 pb-8 flex items-center justify-center">
+        <div className="w-full bg-white rounded-3xl shadow-2xl p-10 text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-4">Email verification</h1>
         <p className={`rounded-xl px-4 py-3 text-base font-semibold ${statusStyles[status.type]}`}>
           {status.message}
@@ -53,6 +56,7 @@ export default function VerifyEmail() {
           >
             Go to login
           </button>
+        </div>
         </div>
       </div>
     </div>
