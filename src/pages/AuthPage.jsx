@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import Navbar from '../components/Navbar';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -109,8 +110,10 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100">
+      <Navbar hideAuthButtons />
+      <div className="w-full max-w-6xl mx-auto px-4 pt-24 pb-8 flex items-center justify-center">
+        <div className="w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative">
         
 
         <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
@@ -304,7 +307,9 @@ export default function AuthPage() {
             </div>
           )}
         </div>
+        </div>
       </div>
+      
     </div>
   );
 }
