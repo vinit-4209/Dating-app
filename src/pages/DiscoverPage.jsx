@@ -1,8 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Heart, Filter, MessageCircle, ShieldCheck, Check, X, Sparkles, BadgeCheck } from 'lucide-react';
+import {
+  Heart,
+  Filter,
+  MessageCircle,
+  ShieldCheck,
+  Check,
+  X,
+  Sparkles,
+  BadgeCheck,
+  MapPin,
+  Waves,
+  Music2,
+  ChefHat,
+  Trees,
+  CircleDot
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import { getDiscover, getMatches, requestMatch, respondMatch } from '../utils/api';
+import { getDiscover, getMatches, getProfile, requestMatch, respondMatch } from '../utils/api';
 
 const profiles = [
   {
@@ -10,55 +25,80 @@ const profiles = [
     name: 'Amelia',
     age: 27,
     city: 'New York',
+    location: { latitude: 40.7128, longitude: -74.006 },
+    photos: [
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80'
+    ],
     compatibility: 94,
     interests: ['Hiking', 'Art museums', 'Street food'],
     about: 'Weekend hiker, amateur painter, and obsessed with finding the best dumplings in the city.',
     vibe: 'Looking for slow mornings and spontaneous trips',
-    badges: ['Verified', 'Active now']
+    badges: ['Verified', 'Active now'],
+    isOnline: true
   },
   {
     id: 2,
     name: 'Noah',
     age: 29,
     city: 'San Francisco',
+    location: { latitude: 37.7749, longitude: -122.4194 },
+    photos: [
+      'https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&w=800&q=80'
+    ],
     compatibility: 88,
     interests: ['Photography', 'Tech', 'Coffee'],
     about: 'Building things by day, photographing sunsets by night. Will trade latte art for travel stories.',
     vibe: 'Ready for thoughtful conversations and city walks',
-    badges: ['Verified']
+    badges: ['Verified'],
+    isOnline: false
   },
   {
     id: 3,
     name: 'Priya',
     age: 26,
     city: 'Austin',
+    location: { latitude: 30.2672, longitude: -97.7431 },
+    photos: [
+      'https://images.unsplash.com/photo-1530785602389-07594beb8b75?auto=format&fit=crop&w=800&q=80'
+    ],
     compatibility: 91,
     interests: ['Live music', 'Cooking', 'Yoga'],
     about: 'Cookbook collector, live music regular, and the friend who makes sure everyone gets home safe.',
     vibe: 'Looking for someone who values kindness and curiosity',
-    badges: ['Verified', 'Recently active']
+    badges: ['Verified', 'Recently active'],
+    isOnline: true
   },
   {
     id: 4,
     name: 'Leo',
     age: 31,
     city: 'Seattle',
+    location: { latitude: 47.6062, longitude: -122.3321 },
+    photos: [
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80'
+    ],
     compatibility: 85,
     interests: ['Climbing', 'Indie films', 'Coffee'],
     about: 'Weekend climber, rainy-day movie buff, and brunch enthusiast. Will bring coffee to any adventure.',
     vibe: 'Let’s swap playlists and plan a day trip',
-    badges: []
+    badges: [],
+    isOnline: true
   },
   {
     id: 5,
     name: 'Maya',
     age: 24,
     city: 'Chicago',
+    location: { latitude: 41.8781, longitude: -87.6298 },
+    photos: [
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80'
+    ],
     compatibility: 89,
     interests: ['Dancing', 'Poetry', 'Food markets'],
     about: 'Professional playlist maker and street food scout. I collect moments and favorite lines.',
     vibe: 'Looking for chemistry and consent-driven connections',
-    badges: ['Verified']
+    badges: ['Verified'],
+    isOnline: false
   }
 ];
 
@@ -90,6 +130,11 @@ export default function DiscoverPage() {
   const [remoteProfiles, setRemoteProfiles] = useState(profiles);
   const [minCompatibility, setMinCompatibility] = useState(85);
   const [bestMatchesFirst, setBestMatchesFirst] = useState(true);
+  const [maxDistanceKm, setMaxDistanceKm] = useState(50);
+  const [ageRange, setAgeRange] = useState([22, 38]);
+  const [interestFilters, setInterestFilters] = useState([]);
+  const [onlineOnly, setOnlineOnly] = useState(false);
+  const [viewerLocation, setViewerLocation] = useState(null);
   const savedConnections = loadConnections();
   const [engagements, setEngagements] = useState(savedConnections?.engagements ?? {});
   const [incomingRequests, setIncomingRequests] = useState(savedConnections?.incomingRequests ?? defaultRequests);
@@ -120,13 +165,32 @@ export default function DiscoverPage() {
         if (Array.isArray(fetched) && fetched.length) {
           const normalized = fetched.map((profile) => ({
             ...profile,
-            id: profile.userId || profile._id
+            id: profile.userId || profile._id,
+            isOnline: profile.isOnline ?? false,
+            interests: profile.interests || [],
+            photos: profile.photos || [],
+            compatibility: profile.compatibility ?? 90
           }));
           setRemoteProfiles(normalized);
           setSelectedProfile(normalized[0]);
         }
       })
       .catch((error) => console.error('Unable to load discovery profiles', error));
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    getProfile()
+      .then(({ profile }) => {
+        if (profile?.location?.latitude && profile?.location?.longitude) {
+          setViewerLocation({
+            latitude: profile.location.latitude,
+            longitude: profile.location.longitude
+          });
+        }
+      })
+      .catch((error) => console.error('Unable to load viewer profile', error));
   }, [token]);
 
   useEffect(() => {
@@ -153,16 +217,49 @@ export default function DiscoverPage() {
       .catch((error) => console.error('Unable to sync matches', error));
   }, [token, viewerId]);
 
+  const calculateDistanceKm = (from, to) => {
+    if (!from || !to?.latitude || !to?.longitude) return null;
+
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(to.latitude - from.latitude);
+    const dLon = toRad(to.longitude - from.longitude);
+    const lat1 = toRad(from.latitude);
+    const lat2 = toRad(to.latitude);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return Math.round(R * c);
+  };
+
   const sortedProfiles = useMemo(() => {
     const pool = remoteProfiles?.length ? remoteProfiles : profiles;
-    const filtered = pool.filter((profile) => profile.compatibility >= minCompatibility);
+    const augmented = pool.map((profile) => ({
+      ...profile,
+      distanceKm: calculateDistanceKm(viewerLocation, profile.location)
+    }));
+
+    const filtered = augmented.filter((profile) => {
+      const meetsCompatibility = profile.compatibility >= minCompatibility;
+      const meetsAge = profile.age ? profile.age >= ageRange[0] && profile.age <= ageRange[1] : true;
+      const meetsOnline = onlineOnly ? profile.isOnline : true;
+      const meetsInterests =
+        interestFilters.length === 0 || interestFilters.some((interest) => profile.interests?.includes(interest));
+      const meetsDistance =
+        profile.distanceKm == null || Number.isNaN(profile.distanceKm) || profile.distanceKm <= maxDistanceKm;
+
+      return meetsCompatibility && meetsAge && meetsOnline && meetsInterests && meetsDistance;
+    });
 
     if (bestMatchesFirst) {
       return [...filtered].sort((a, b) => b.compatibility - a.compatibility);
     }
 
     return filtered;
-  }, [bestMatchesFirst, minCompatibility]);
+  }, [ageRange, bestMatchesFirst, interestFilters, maxDistanceKm, minCompatibility, onlineOnly, viewerLocation]);
 
   const statusFor = (id) => engagements[id]?.status ?? 'none';
 
@@ -244,6 +341,20 @@ export default function DiscoverPage() {
 
   const conversationForSelected = conversations[selectedProfile?.id] ?? [];
 
+  const toggleInterest = (interest) => {
+    setInterestFilters((prev) =>
+      prev.includes(interest) ? prev.filter((item) => item !== interest) : [...prev, interest]
+    );
+  };
+
+  const primaryPhoto = (profile) => profile.photos?.[0];
+
+  const formatDistance = (distanceKm) => {
+    if (distanceKm == null || Number.isNaN(distanceKm)) return 'Distance unknown';
+    if (distanceKm < 1) return '<1 km away';
+    return `${distanceKm} km away`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
       <Navbar />
@@ -283,6 +394,37 @@ export default function DiscoverPage() {
                   className="w-32 accent-pink-500"
                 />
               </label>
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                Distance up to {maxDistanceKm} km
+                <input
+                  type="range"
+                  min="5"
+                  max="150"
+                  value={maxDistanceKm}
+                  onChange={(e) => setMaxDistanceKm(Number(e.target.value))}
+                  className="w-32 accent-pink-500"
+                />
+              </label>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                Age range
+                <input
+                  type="number"
+                  min="18"
+                  max={ageRange[1]}
+                  value={ageRange[0]}
+                  onChange={(e) => setAgeRange([Number(e.target.value), ageRange[1]])}
+                  className="w-16 rounded-lg border border-gray-200 px-2 py-1 text-sm"
+                />
+                <span className="text-gray-400">–</span>
+                <input
+                  type="number"
+                  min={ageRange[0]}
+                  max="70"
+                  value={ageRange[1]}
+                  onChange={(e) => setAgeRange([ageRange[0], Number(e.target.value)])}
+                  className="w-16 rounded-lg border border-gray-200 px-2 py-1 text-sm"
+                />
+              </div>
               <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                 <input
                   type="checkbox"
@@ -292,97 +434,192 @@ export default function DiscoverPage() {
                 />
                 Show best matches first
               </label>
+              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="accent-pink-500"
+                  checked={onlineOnly}
+                  onChange={(e) => setOnlineOnly(e.target.checked)}
+                />
+                Show only online now
+              </label>
+            </div>
+
+            <div className="bg-white shadow-lg rounded-3xl p-4 flex flex-wrap gap-2">
+              {[{ label: 'Music', icon: Music2 }, { label: 'Art', icon: Waves }, { label: 'Foodie', icon: ChefHat }, { label: 'Outdoors', icon: Trees }].map(
+                ({ label, icon: Icon }) => (
+                  <button
+                    key={label}
+                    onClick={() => toggleInterest(label)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-semibold transition-colors ${
+                      interestFilters.includes(label)
+                        ? 'bg-pink-100 text-pink-700 border-pink-200'
+                        : 'bg-white text-gray-700 border-gray-200 hover:border-pink-200'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </button>
+                )
+              )}
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
               {sortedProfiles.map((profile) => (
-                <button
+                <div
                   key={profile.id}
-                  onClick={() => setSelectedProfile(profile)}
-                  className={`text-left bg-white rounded-3xl p-4 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 border ${
+                  className={`relative text-left bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 border ${
                     selectedProfile?.id === profile.id ? 'border-pink-400' : 'border-transparent'
                   }`}
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {profile.name}, {profile.age}
-                      </p>
-                      <p className="text-sm text-gray-500">{profile.city}</p>
+                  <button onClick={() => setSelectedProfile(profile)} className="w-full text-left">
+                    <div className="relative h-56 w-full bg-gray-100">
+                      {primaryPhoto(profile) ? (
+                        <img src={primaryPhoto(profile)} alt={`${profile.name} profile`} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-pink-100 to-purple-100" />
+                      )}
+                      <div className="absolute top-3 left-3 flex items-center gap-2">
+                        {profile.isOnline && <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700"><CircleDot className="w-3 h-3" /> Online</span>}
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-gray-800">
+                          <MapPin className="w-3 h-3" /> {profile.city}
+                        </span>
+                      </div>
+                      <div className="absolute bottom-3 right-3">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-pink-700 shadow">
+                          <Heart className="w-4 h-4" /> {profile.compatibility}%
+                        </span>
+                      </div>
                     </div>
-                    <span className="px-3 py-1 rounded-full bg-pink-100 text-pink-700 text-xs font-semibold">
-                      {profile.compatibility}% match
-                    </span>
+                    <div className="p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-lg font-semibold text-gray-900">
+                            {profile.name}, {profile.age}
+                          </p>
+                          <p className="text-sm text-gray-500">{formatDistance(profile.distanceKm)}</p>
+                        </div>
+                        {profile.badges?.includes('Verified') && <BadgeCheck className="w-5 h-5 text-green-500" />}
+                      </div>
+                      <p className="text-sm text-gray-700 line-clamp-2">{profile.about}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {profile.interests.slice(0, 4).map((interest) => (
+                          <span key={interest} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
+                            {interest}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </button>
+                  <div className="absolute top-4 right-4">
+                    <button
+                      onClick={() => sendRequest(profile)}
+                      disabled={statusFor(profile.id) !== 'none'}
+                      className={`flex items-center justify-center rounded-full p-3 shadow-lg transition ${
+                        statusFor(profile.id) === 'none'
+                          ? 'bg-white text-pink-600 hover:bg-pink-50'
+                          : statusFor(profile.id) === 'pending'
+                          ? 'bg-orange-50 text-orange-500'
+                          : 'bg-green-50 text-green-600'
+                      }`}
+                    >
+                      <Heart className="w-5 h-5" />
+                    </button>
                   </div>
-                  <p className="text-sm text-gray-700 mt-3 line-clamp-2">{profile.about}</p>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {profile.interests.map((interest) => (
-                      <span key={interest} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
-                        {interest}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2 mt-3 text-xs text-gray-600">
-                    {profile.badges.includes('Verified') && (
-                      <span className="flex items-center gap-1">
-                        <BadgeCheck className="w-4 h-4 text-green-500" /> Verified profile
-                      </span>
-                    )}
-                    {profile.badges.includes('Active now') && (
-                      <span className="px-2 py-1 bg-green-100 text-green-600 rounded-full">Active now</span>
-                    )}
-                  </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="bg-white rounded-3xl p-6 shadow-lg">
-              <div className="flex items-center justify-between">
+            <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
+              <div className="relative h-64 w-full bg-gray-100">
+                {primaryPhoto(selectedProfile) ? (
+                  <img
+                    src={primaryPhoto(selectedProfile)}
+                    alt={`${selectedProfile.name} profile large`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gradient-to-br from-pink-100 to-purple-200" />
+                )}
+                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                  <div className="bg-white/90 backdrop-blur rounded-2xl px-4 py-2 shadow">
+                    <p className="text-xl font-bold text-gray-900">
+                      {selectedProfile.name}, {selectedProfile.age}
+                    </p>
+                    <p className="text-sm text-gray-700 flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-pink-500" /> {selectedProfile.city}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => sendRequest(selectedProfile)}
+                    disabled={statusFor(selectedProfile.id) !== 'none'}
+                    className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-pink-600 font-semibold shadow hover:bg-white"
+                  >
+                    <Heart className="w-5 h-5" />
+                    {statusFor(selectedProfile.id) === 'none'
+                      ? 'Like'
+                      : statusFor(selectedProfile.id) === 'pending'
+                      ? 'Pending'
+                      : 'Matched'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="px-3 py-1 rounded-full bg-pink-100 text-pink-700 text-xs font-semibold">
+                    {selectedProfile.compatibility}% compatible
+                  </span>
+                  <span className="text-sm text-gray-600">{formatDistance(selectedProfile.distanceKm)}</span>
+                </div>
+                <p className="text-gray-700 leading-relaxed">{selectedProfile.about}</p>
+                <div className="p-3 bg-gray-50 rounded-2xl text-sm text-gray-700 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-pink-500" />
+                  <strong className="text-gray-900">Vibe:</strong> {selectedProfile.vibe}
+                </div>
+
                 <div>
-                  <p className="text-sm text-gray-500">Focused view</p>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {selectedProfile.name}, {selectedProfile.age}
-                  </h2>
-                  <p className="text-sm text-gray-500">{selectedProfile.city}</p>
+                  <p className="text-xs uppercase text-gray-500 font-semibold mb-2">Interests</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProfile.interests.map((interest) => (
+                      <span key={interest} className="px-3 py-1 bg-pink-50 text-pink-700 rounded-full text-xs font-semibold">
+                        {interest}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-pink-100 text-pink-700 text-xs font-semibold">
-                  {selectedProfile.compatibility}% compatible
-                </span>
-              </div>
 
-              <p className="mt-4 text-gray-700 leading-relaxed">{selectedProfile.about}</p>
-              <div className="mt-3 p-3 bg-gray-50 rounded-2xl text-sm text-gray-700">
-                <strong className="text-gray-900">Vibe:</strong> {selectedProfile.vibe}
-              </div>
-
-              <div className="mt-4">
-                <p className="text-xs uppercase text-gray-500 font-semibold mb-2">Shared interests</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedProfile.interests.map((interest) => (
-                    <span key={interest} className="px-3 py-1 bg-pink-50 text-pink-700 rounded-full text-xs font-semibold">
-                      {interest}
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  {selectedProfile.isOnline && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                      <CircleDot className="w-3 h-3" /> Online now
                     </span>
-                  ))}
+                  )}
+                  {selectedProfile.badges?.includes('Verified') && (
+                    <span className="inline-flex items-center gap-1 text-green-600">
+                      <BadgeCheck className="w-4 h-4" /> Verified profile
+                    </span>
+                  )}
                 </div>
-              </div>
 
-              <div className="mt-6 space-y-3">
-                <button
-                  onClick={() => sendRequest(selectedProfile)}
-                  disabled={statusFor(selectedProfile.id) !== 'none'}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold py-3 shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  <Heart className="w-5 h-5" />
-                  {statusFor(selectedProfile.id) === 'none' && 'Send like request'}
-                  {statusFor(selectedProfile.id) === 'pending' && 'Request sent · waiting for consent'}
-                  {statusFor(selectedProfile.id) === 'accepted' && 'Connected · start chatting'}
-                </button>
+                <div className="mt-4 space-y-3">
+                  <button
+                    onClick={() => sendRequest(selectedProfile)}
+                    disabled={statusFor(selectedProfile.id) !== 'none'}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold py-3 shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <Heart className="w-5 h-5" />
+                    {statusFor(selectedProfile.id) === 'none' && 'Send like request'}
+                    {statusFor(selectedProfile.id) === 'pending' && 'Request sent · waiting for consent'}
+                    {statusFor(selectedProfile.id) === 'accepted' && 'Connected · start chatting'}
+                  </button>
 
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <ShieldCheck className="w-4 h-4 text-green-500" />
-                  Consent-first: chat unlocks only when both people agree.
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <ShieldCheck className="w-4 h-4 text-green-500" />
+                    Consent-first: chat unlocks only when both people agree.
+                  </div>
                 </div>
               </div>
             </div>

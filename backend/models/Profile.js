@@ -13,7 +13,11 @@ const ProfileSchema = new mongoose.Schema(
     lookingFor: String,
     height: String,
     education: String,
-    occupation: String
+    occupation: String,
+    location: {
+      latitude: Number,
+      longitude: Number
+    }
   },
   { timestamps: true }
 );
