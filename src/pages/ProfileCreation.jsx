@@ -9,6 +9,7 @@ export default function CreateProfile() {
   const totalSteps = 3;
   const [photos, setPhotos] = useState([]);
   const [status, setStatus] = useState('');
+  const [locationStatus, setLocationStatus] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -20,7 +21,9 @@ export default function CreateProfile() {
     lookingFor: '',
     height: '',
     education: '',
-    occupation: ''
+    occupation: '',
+    latitude: '',
+    longitude: ''
   });
   const navigate = useNavigate();
 
@@ -40,25 +43,42 @@ export default function CreateProfile() {
     e.preventDefault();
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
-    handleFiles(files);
+    await handleFiles(files);
   };
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files);
-    handleFiles(files);
+    await handleFiles(files);
   };
 
-  const handleFiles = (files) => {
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
-    const newPhotos = imageFiles.map(file => ({
-      id: Date.now() + Math.random(),
-      url: URL.createObjectURL(file),
-      file
-    }));
-    setPhotos(prev => [...prev, ...newPhotos].slice(0, 6));
+  const readFileAsDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Unable to read file.'));
+      reader.readAsDataURL(file);
+    });
+
+  const handleFiles = async (files) => {
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+    const remainingSlots = Math.max(0, 6 - photos.length);
+    const limitedFiles = imageFiles.slice(0, remainingSlots);
+
+    const newPhotos = await Promise.all(
+      limitedFiles.map(async (file) => {
+        const dataUrl = await readFileAsDataUrl(file);
+        return {
+          id: Date.now() + Math.random(),
+          url: dataUrl,
+          fileName: file.name
+        };
+      })
+    );
+
+    setPhotos((prev) => [...prev, ...newPhotos].slice(0, 6));
   };
 
   const removePhoto = (id) => {
@@ -73,46 +93,70 @@ export default function CreateProfile() {
     }
   };
 
-  const handleNext = () => {
-  if (currentStep < totalSteps) {
-    setCurrentStep(currentStep + 1);
-    return;
-  }
+  const requestLocationAccess = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus('Geolocation is not supported by your browser.');
+      return;
+    }
 
-  const { interestsText, ...rest } = formData;
-
-  const derivedInterests = interestsText
-    ? interestsText
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
-    : formData.interests;
-
-  const payload = {
-    ...rest,
-    interests: derivedInterests,
-    photos: photos.map((photo) => photo.url)
+    setLocationStatus('Requesting permission to access your location...');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setFormData((prev) => ({ ...prev, latitude, longitude }));
+        setLocationStatus('Location captured successfully.');
+      },
+      () => {
+        setLocationStatus('Unable to access location. Please enable permissions and try again.');
+      }
+    );
   };
 
-  localStorage.setItem('profileData', JSON.stringify(payload));
+  const handleNext = () => {
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
+      return;
+    }
 
-  const token = localStorage.getItem('authToken');
+    const { interestsText, latitude, longitude, ...rest } = formData;
 
-  if (token) {
-    saveProfile(payload)
-      .then(() => {
-        setStatus('Profile saved to the server.');
-        navigate('/discover');
-      })
-      .catch(() => {
-        setStatus('Saved locally, but unable to reach the server.');
-        navigate('/discover');
-      });
-  } else {
-    setStatus('Saved locally. Log in to sync with the server.');
-    navigate('/discover');
-  }
-};
+    const locationPayload = latitude && longitude
+      ? { location: { latitude: Number(latitude), longitude: Number(longitude) } }
+      : {};
+
+    const derivedInterests = interestsText
+      ? interestsText
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : formData.interests;
+
+    const payload = {
+      ...rest,
+      ...locationPayload,
+      interests: derivedInterests,
+      photos: photos.map((photo) => photo.url)
+    };
+
+    localStorage.setItem('profileData', JSON.stringify(payload));
+
+    const token = localStorage.getItem('authToken');
+
+    if (token) {
+      saveProfile(payload)
+        .then(() => {
+          setStatus('Profile saved to the server.');
+          navigate('/discover');
+        })
+        .catch(() => {
+          setStatus('Saved locally, but unable to reach the server.');
+          navigate('/discover');
+        });
+    } else {
+      setStatus('Saved locally. Log in to sync with the server.');
+      navigate('/discover');
+    }
+  };
 
 
   return (
@@ -175,16 +219,40 @@ export default function CreateProfile() {
               </div>
             </div>
 
-            {/* City */}
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2">City</label>
-              <input
-                type="text"
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-                className="w-full px-6 py-3 border-2 border-gray-200 rounded-full focus:outline-none focus:border-pink-400 transition-colors"
-              />
+            {/* City and Location */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">City</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  className="w-full px-6 py-3 border-2 border-gray-200 rounded-full focus:outline-none focus:border-pink-400 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">Precise location</label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={requestLocationAccess}
+                    className="px-5 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full font-semibold shadow-md hover:shadow-lg"
+                  >
+                    Use current location
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  {locationStatus || 'Allow location access so we can store your coordinates with your profile.'}
+                </p>
+                {(formData.latitude || formData.longitude) && (
+                  <div className="flex flex-wrap gap-3 mt-3 text-sm text-gray-700">
+                    <span className="px-3 py-2 bg-gray-100 rounded-full">Lat: {formData.latitude}</span>
+                    <span className="px-3 py-2 bg-gray-100 rounded-full">Lng: {formData.longitude}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Pronouns */}
