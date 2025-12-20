@@ -74,60 +74,46 @@ export default function CreateProfile() {
   };
 
   const handleNext = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
-      return;
-    }
+  if (currentStep < totalSteps) {
+    setCurrentStep(currentStep + 1);
+    return;
+  }
 
-    const { interestsText, ...rest } = formData;
-    const derivedInterests = interestsText
-      ? interestsText
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean)
-      : formData.interests;
+  const { interestsText, ...rest } = formData;
 
-    const payload = {
-      ...rest,
-      interests: derivedInterests,
-      photos: photos.map((photo) => photo.url)
-    };
-    localStorage.setItem('profileData', JSON.stringify(payload));
+  const derivedInterests = interestsText
+    ? interestsText
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : formData.interests;
 
-    const token = localStorage.getItem('authToken');
-
-    if (token) {
-      saveProfile(payload)
-        .then(() => {
-          setStatus('Profile saved to the server.');
-          navigate('/discover');
-        })
-        .catch(() => {
-          setStatus('Saved locally, but unable to reach the server.');
-          navigate('/discover');
-        });
-    } else {
-      setStatus('Saved locally. Log in to sync with the server.');
-      navigate('/discover');
-    }
-
-    const { interestsText, ...rest } = formData;
-    const derivedInterests = interestsText
-      ? interestsText
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean)
-      : formData.interests;
-
-    const payload = {
-      ...rest,
-      interests: derivedInterests,
-      photos: photos.map((photo) => photo.url)
-    };
-
-    localStorage.setItem('profileData', JSON.stringify(payload));
-    navigate('/discover');
+  const payload = {
+    ...rest,
+    interests: derivedInterests,
+    photos: photos.map((photo) => photo.url)
   };
+
+  localStorage.setItem('profileData', JSON.stringify(payload));
+
+  const token = localStorage.getItem('authToken');
+
+  if (token) {
+    saveProfile(payload)
+      .then(() => {
+        setStatus('Profile saved to the server.');
+        navigate('/discover');
+      })
+      .catch(() => {
+        setStatus('Saved locally, but unable to reach the server.');
+        navigate('/discover');
+      });
+  } else {
+    setStatus('Saved locally. Log in to sync with the server.');
+    navigate('/discover');
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100">
