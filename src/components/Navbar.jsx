@@ -1,19 +1,52 @@
 import { Heart } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-
-const links = [
-  { to: '/', label: 'Home' },
-  { to: '/discover', label: 'Discover' },
-  { to: '/create-profile', label: 'Create Profile' },
-  { to: '/chat', label: 'Chat' },
-  { to: '/profile', label: 'My Profile' }
-];
 
 export default function Navbar({ hideAuthButtons = false }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return typeof localStorage !== 'undefined' && !!localStorage.getItem('authToken');
+  });
+
+  useEffect(() => {
+    const syncAuth = () => {
+      setIsAuthenticated(typeof localStorage !== 'undefined' && !!localStorage.getItem('authToken'));
+    };
+
+    window.addEventListener('storage', syncAuth);
+    return () => window.removeEventListener('storage', syncAuth);
+  }, []);
+
+  useEffect(() => {
+    setIsAuthenticated(typeof localStorage !== 'undefined' && !!localStorage.getItem('authToken'));
+  }, [location.pathname]);
 
   const isActive = (to) => location.pathname === to;
+
+  const links = useMemo(() => {
+    const publicLinks = [
+      { to: '/', label: 'Home' },
+      { to: '/discover', label: 'Discover' }
+    ];
+
+    if (!isAuthenticated) {
+      return publicLinks;
+    }
+
+    return [
+      ...publicLinks,
+      { to: '/create-profile', label: 'Create Profile' },
+      { to: '/chat', label: 'Chat' },
+      { to: '/profile', label: 'My Profile' }
+    ];
+  }, [isAuthenticated]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    setIsAuthenticated(false);
+    navigate('/auth?mode=login');
+  };
 
   return (
     <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-lg z-50 border-b border-pink-50 shadow-sm">
@@ -42,18 +75,29 @@ export default function Navbar({ hideAuthButtons = false }) {
 
           {!hideAuthButtons && (
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/auth?mode=login')}
-                className="px-4 py-2 text-sm font-semibold text-pink-600 hover:text-pink-700"
-              >
-                Log in
-              </button>
-              <button
-                onClick={() => navigate('/auth?mode=signup')}
-                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm font-semibold rounded-full shadow-md hover:shadow-lg"
-              >
-                Sign up
-              </button>
+              {isAuthenticated ? (
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-sm font-semibold text-pink-600 hover:text-pink-700"
+                >
+                  Log out
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate('/auth?mode=login')}
+                    className="px-4 py-2 text-sm font-semibold text-pink-600 hover:text-pink-700"
+                  >
+                    Log in
+                  </button>
+                  <button
+                    onClick={() => navigate('/auth?mode=signup')}
+                    className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm font-semibold rounded-full shadow-md hover:shadow-lg"
+                  >
+                    Sign up
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
