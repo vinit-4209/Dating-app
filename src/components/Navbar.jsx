@@ -71,6 +71,30 @@ export default function Navbar({ hideAuthButtons = false }) {
     navigate('/auth?mode=login');
   };
 
+  const links = useMemo(() => {
+    const publicLinks = [
+      { to: '/', label: 'Home' },
+      { to: '/discover', label: 'Discover' }
+    ];
+
+    if (!isAuthenticated) {
+      return publicLinks;
+    }
+
+    return [
+      ...publicLinks,
+      { to: '/create-profile', label: 'Create Profile' },
+      { to: '/chat', label: 'Chat' },
+      { to: '/profile', label: 'My Profile' }
+    ];
+  }, [isAuthenticated]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    setIsAuthenticated(false);
+    navigate('/auth?mode=login');
+  };
+
   return (
     <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-lg z-50 border-b border-pink-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
