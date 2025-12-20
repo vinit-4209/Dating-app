@@ -22,7 +22,54 @@ export default function Navbar({ hideAuthButtons = false }) {
     setIsAuthenticated(typeof localStorage !== 'undefined' && !!localStorage.getItem('authToken'));
   }, [location.pathname]);
 
-  const isActive = (to) => location.pathname === to;
+  const isActive = (link) => {
+    if (link.hash) {
+      return location.pathname === link.to && location.hash === link.hash;
+    }
+    return location.pathname === link.to;
+  };
+
+  const links = useMemo(() => {
+    const publicLinks = [
+      { to: '/', label: 'Home' },
+      { to: '/', label: 'Features', hash: '#features' },
+      { to: '/', label: 'How It Works', hash: '#how-it-works' }
+    ];
+
+    if (!isAuthenticated) {
+      return publicLinks;
+    }
+
+    return [
+      ...publicLinks,
+      { to: '/discover', label: 'Discover' },
+      { to: '/create-profile', label: 'Create Profile' },
+      { to: '/chat', label: 'Chat' },
+      { to: '/profile', label: 'My Profile' }
+    ];
+  }, [isAuthenticated]);
+
+  const handleNavClick = (link) => {
+    if (link.hash) {
+      if (location.pathname === link.to) {
+        const target = document.querySelector(link.hash);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth' });
+        }
+      } else {
+        navigate(`${link.to}${link.hash}`);
+      }
+      return;
+    }
+
+    navigate(link.to);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    setIsAuthenticated(false);
+    navigate('/auth?mode=login');
+  };
 
   const links = useMemo(() => {
     const publicLinks = [
@@ -63,9 +110,9 @@ export default function Navbar({ hideAuthButtons = false }) {
             {links.map((link) => (
               <button
                 key={link.to}
-                onClick={() => navigate(link.to)}
+                onClick={() => handleNavClick(link)}
                 className={`text-sm font-semibold transition-colors ${
-                  isActive(link.to) ? 'text-pink-600' : 'text-gray-600 hover:text-pink-500'
+                  isActive(link) ? 'text-pink-600' : 'text-gray-600 hover:text-pink-500'
                 }`}
               >
                 {link.label}
