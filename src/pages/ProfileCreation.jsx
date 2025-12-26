@@ -62,6 +62,27 @@ export default function CreateProfile() {
       reader.readAsDataURL(file);
     });
 
+  const reverseGeocode = async (latitude, longitude) => {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+    );
+
+    if (!res.ok) {
+      throw new Error('Unable to resolve location name.');
+    }
+
+    const data = await res.json();
+    const address = data.address || {};
+    return (
+      address.city ||
+      address.town ||
+      address.village ||
+      address.state ||
+      data.display_name ||
+      ''
+    );
+  };
+
   const handleFiles = async (files) => {
     const imageFiles = files.filter((file) => file.type.startsWith('image/'));
     const remainingSlots = Math.max(0, 6 - photos.length);
@@ -101,10 +122,25 @@ export default function CreateProfile() {
 
     setLocationStatus('Requesting permission to access your location...');
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
         setFormData((prev) => ({ ...prev, latitude, longitude }));
-        setLocationStatus('Location captured successfully.');
+        setLocationStatus('Location captured. Fetching place name...');
+
+        try {
+          const locationName = await reverseGeocode(latitude, longitude);
+          setFormData((prev) => ({
+            ...prev,
+            latitude,
+            longitude,
+            city: locationName || prev.city
+          }));
+          setLocationStatus(
+            locationName ? `Location set to ${locationName}.` : 'Location captured successfully.'
+          );
+        } catch (error) {
+          setLocationStatus('Location captured, but unable to resolve the place name automatically.');
+        }
       },
       () => {
         setLocationStatus('Unable to access location. Please enable permissions and try again.');

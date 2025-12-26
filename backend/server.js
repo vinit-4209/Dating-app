@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { v2 as cloudinary } from 'cloudinary';
 import User from './models/User.js';
 import Profile from './models/Profile.js';
 import Match from './models/Match.js';
@@ -17,6 +18,17 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const CLOUDINARY_CONFIGURED = Boolean(
+  process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET
+);
+
+if (CLOUDINARY_CONFIGURED) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+  });
+}
 
 app.use(
   cors({
@@ -63,6 +75,34 @@ function generateVerificationToken() {
   const token = crypto.randomBytes(32).toString('hex');
   const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
   return { token, hashedToken };
+}
+
+async function resolveProfilePhotos(photos = []) {
+  if (!Array.isArray(photos)) {
+    return [];
+  }
+
+  const uploads = photos.map(async (photo) => {
+    if (typeof photo !== 'string') {
+      return null;
+    }
+
+    if (photo.startsWith('data:')) {
+      if (!CLOUDINARY_CONFIGURED) {
+        throw new Error('Cloudinary is not configured.');
+      }
+
+      const result = await cloudinary.uploader.upload(photo, {
+        folder: 'loveconnect/profiles'
+      });
+      return result.secure_url;
+    }
+
+    return photo;
+  });
+
+  const resolved = await Promise.all(uploads);
+  return resolved.filter(Boolean);
 }
 
 app.post('/api/auth/signup', async (req, res) => {
@@ -186,11 +226,12 @@ app.get('/api/profile', requireAuth, async (req, res) => {
 
 app.post('/api/profile', requireAuth, async (req, res) => {
   try {
-    const payload = req.body;
+    const { photos = [], ...payload } = req.body;
+    const resolvedPhotos = await resolveProfilePhotos(photos);
 
     const profile = await Profile.findOneAndUpdate(
       { userId: req.user.id },
-      { ...payload, userId: req.user.id },
+      { ...payload, photos: resolvedPhotos, userId: req.user.id },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
