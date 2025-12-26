@@ -1,22 +1,37 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Heart, MessageCircle, Sparkles, Shield, Users, Zap, Star, MapPin, Camera, Clock } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
 
 export default function LandingPage() {
   const [email, setEmail] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return typeof localStorage !== 'undefined' && !!localStorage.getItem('authToken');
+  });
   const navigate = useNavigate();
 
   const handleGetStarted = () => {
-    navigate('/auth?mode=signup', {
-      state: { email }
-    });
+    if (isAuthenticated) {
+      navigate('/discover');
+      return;
+    }
+
+    navigate('/auth?mode=signup', { state: { email } });
   };
 
-  const goToAuth = (mode) => {
-    navigate(`/auth?mode=${mode}`);
-  };
+  useEffect(() => {
+    const syncAuth = () => {
+      setIsAuthenticated(typeof localStorage !== 'undefined' && !!localStorage.getItem('authToken'));
+    };
+
+    window.addEventListener('storage', syncAuth);
+    return () => window.removeEventListener('storage', syncAuth);
+  }, []);
+
+  useEffect(() => {
+    setIsAuthenticated(typeof localStorage !== 'undefined' && !!localStorage.getItem('authToken'));
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
@@ -40,18 +55,22 @@ export default function LandingPage() {
                 Join millions finding meaningful relationships through smart matching, genuine profiles, and authentic conversations.
               </p>
               <div className="flex gap-4 mb-8">
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1 px-6 py-4 border-2 border-gray-200 rounded-full focus:outline-none focus:border-pink-400 transition-colors"
-                />
+                {!isAuthenticated && (
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="flex-1 px-6 py-4 border-2 border-gray-200 rounded-full focus:outline-none focus:border-pink-400 transition-colors"
+                  />
+                )}
                 <button
                   onClick={handleGetStarted}
-                  className="px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold rounded-full hover:shadow-xl transition-all hover:scale-105"
+                  className={`px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold rounded-full hover:shadow-xl transition-all hover:scale-105 ${
+                    isAuthenticated ? 'w-full md:w-auto' : ''
+                  }`}
                 >
-                  Get Started
+                  {isAuthenticated ? 'Go to Discover' : 'Get Started'}
                 </button>
               </div>
               <div className="flex items-center gap-6 text-sm text-gray-600">
@@ -320,9 +339,11 @@ export default function LandingPage() {
             Join millions of singles finding meaningful connections on LoveConnect
           </p>
           
-          <button 
-          onClick={handleGetStarted} className="px-12 py-5 bg-white text-pink-600 font-bold text-lg rounded-full hover:shadow-2xl transition-all hover:scale-105">
-            Get Started for Free
+          <button
+            onClick={handleGetStarted}
+            className="px-12 py-5 bg-white text-pink-600 font-bold text-lg rounded-full hover:shadow-2xl transition-all hover:scale-105"
+          >
+            {isAuthenticated ? 'Go to Discover' : 'Get Started for Free'}
           </button>
           <p className="text-pink-100 mt-4">No credit card required • Free forever</p>
         </div>

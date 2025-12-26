@@ -191,7 +191,8 @@ export default function Navbar({ hideAuthButtons = false }) {
     const publicLinks = [
       { to: '/', label: 'Home' },
       { to: '/', label: 'Features', hash: '#features' },
-      { to: '/', label: 'How It Works', hash: '#how-it-works' }
+      { to: '/', label: 'How It Works', hash: '#how-it-works' },
+      { to: '/discover', label: 'Discover' }
     ];
 
     if (!isAuthenticated) {
@@ -200,8 +201,6 @@ export default function Navbar({ hideAuthButtons = false }) {
 
     return [
       ...publicLinks,
-      { to: '/discover', label: 'Discover' },
-      { to: '/create-profile', label: 'Create Profile' },
       { to: '/chat', label: 'Chat' },
       { to: '/profile', label: 'My Profile' }
     ];
