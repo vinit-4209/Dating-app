@@ -52,7 +52,7 @@ async function connectDB() {
     // });
     mongoose.connect(process.env.MONGODB_URI);
 
-    console.log('✅ Connected to MongoDB');
+    console.log('Connected to MongoDB');
   } catch (error) {
     console.error('MongoDB connection error:', error.message);
     process.exit(1);
@@ -328,7 +328,7 @@ app.get('/health', (_req, res) => {
 
 connectDB().then(() => {
   app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 
   });
 });
