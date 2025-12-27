@@ -71,7 +71,7 @@ export default function ProfilePage() {
               Back to matches
             </button>
             <button
-              onClick={() => navigate('/create-profile')}
+              onClick={() => navigate('/edit-profile')}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold shadow-md hover:shadow-lg"
             >
               <Edit3 className="w-4 h-4" />
@@ -147,7 +147,7 @@ export default function ProfilePage() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Photos</h3>
                 <button
-                  onClick={() => navigate('/create-profile')}
+                  onClick={() => navigate('/edit-profile')}
                   className="inline-flex items-center gap-2 text-sm font-semibold text-pink-600"
                 >
                   <Upload className="w-4 h-4" />
@@ -156,11 +156,14 @@ export default function ProfilePage() {
               </div>
               {profile.photos?.length ? (
                 <div className="grid grid-cols-2 gap-3">
-                  {profile.photos.map((photo, idx) => (
-                    <div key={`${photo}-${idx}`} className="aspect-square rounded-2xl overflow-hidden">
-                      <img src={photo} alt={`Profile ${idx + 1}`} className="w-full h-full object-cover" />
+                  {profile.photos.map((photo, idx) => {
+                    const photoUrl = typeof photo === 'string' ? photo : photo.url;
+                    return (
+                    <div key={`${photoUrl}-${idx}`} className="aspect-square rounded-2xl overflow-hidden">
+                      <img src={photoUrl} alt={`Profile ${idx + 1}`} className="w-full h-full object-cover" />
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               ) : (
                 <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center text-gray-500 text-sm">
@@ -178,7 +181,7 @@ export default function ProfilePage() {
                 Start matching
               </button>
               <button
-                onClick={() => navigate('/create-profile')}
+                onClick={() => navigate('/edit-profile')}
                 className="w-full py-3 rounded-full border border-gray-200 text-gray-800 font-semibold hover:bg-white"
               >
                 Improve my profile

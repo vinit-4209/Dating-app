@@ -29,6 +29,8 @@ export default function CreateProfile() {
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('profileComplete');
+    localStorage.removeItem('profileData');
     navigate('/auth?mode=login');
   };
 
@@ -182,10 +184,12 @@ export default function CreateProfile() {
       saveProfile(payload)
         .then(() => {
           setStatus('Profile saved to the server.');
+          localStorage.setItem('profileComplete', 'true');
           navigate('/discover');
         })
         .catch(() => {
           setStatus('Saved locally, but unable to reach the server.');
+          localStorage.setItem('profileComplete', 'true');
           navigate('/discover');
         });
     } else {
@@ -231,7 +235,7 @@ export default function CreateProfile() {
           {/* Left Column - Form Fields */}
           <div className="space-y-6">
             {/* Name and Age */}
-            <div className="flex gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
                 <label className="block text-gray-700 font-semibold mb-2">Name</label>
                 <input
@@ -242,7 +246,7 @@ export default function CreateProfile() {
                   className="w-full px-6 py-3 border-2 border-gray-200 rounded-full focus:outline-none focus:border-pink-400 transition-colors"
                 />
               </div>
-              <div className="w-32">
+              <div className="w-full md:w-32">
                 <label className="block text-gray-700 font-semibold mb-2">Age</label>
                 <input
                   type="number"
@@ -397,7 +401,7 @@ export default function CreateProfile() {
 
             {/* Photo Grid */}
             {photos.length > 0 && (
-              <div className="grid grid-cols-4 gap-3 mb-6">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-6">
                 {photos.map((photo) => (
                   <div key={photo.id} className="relative aspect-square rounded-2xl overflow-hidden group">
                     <img
@@ -431,16 +435,16 @@ export default function CreateProfile() {
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between items-center mt-8 pt-8 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row justify-between items-center mt-8 pt-8 border-t border-gray-200 gap-4">
           <button
             onClick={handleBack}
-            className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-all"
+            className="w-full sm:w-auto px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-all"
           >
             Back
           </button>
           <button
             onClick={handleNext}
-            className="px-12 py-3 bg-gradient-to-r from-orange-400 via-pink-500 to-pink-600 text-white rounded-full font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+            className="w-full sm:w-auto px-12 py-3 bg-gradient-to-r from-orange-400 via-pink-500 to-pink-600 text-white rounded-full font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
             >
               Continue
             </button>
