@@ -165,10 +165,14 @@ export default function Navbar({ hideAuthButtons = false }) {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return typeof localStorage !== 'undefined' && !!localStorage.getItem('authToken');
   });
+  const [hasProfile, setHasProfile] = useState(() => {
+    return typeof localStorage !== 'undefined' && localStorage.getItem('profileComplete') === 'true';
+  });
 
   useEffect(() => {
     const syncAuth = () => {
       setIsAuthenticated(typeof localStorage !== 'undefined' && !!localStorage.getItem('authToken'));
+      setHasProfile(typeof localStorage !== 'undefined' && localStorage.getItem('profileComplete') === 'true');
     };
 
     window.addEventListener('storage', syncAuth);
@@ -177,6 +181,7 @@ export default function Navbar({ hideAuthButtons = false }) {
 
   useEffect(() => {
     setIsAuthenticated(typeof localStorage !== 'undefined' && !!localStorage.getItem('authToken'));
+    setHasProfile(typeof localStorage !== 'undefined' && localStorage.getItem('profileComplete') === 'true');
   }, [location.pathname]);
 
   const isActive = (link) => {
@@ -191,20 +196,24 @@ export default function Navbar({ hideAuthButtons = false }) {
     const publicLinks = [
       { to: '/', label: 'Home' },
       { to: '/', label: 'Features', hash: '#features' },
-      { to: '/', label: 'How It Works', hash: '#how-it-works' },
-      { to: '/discover', label: 'Discover' }
+      { to: '/', label: 'How It Works', hash: '#how-it-works' }
     ];
 
     if (!isAuthenticated) {
       return publicLinks;
     }
 
+    if (!hasProfile) {
+      return [...publicLinks, { to: '/create-profile', label: 'Create Profile' }];
+    }
+
     return [
       ...publicLinks,
+      { to: '/discover', label: 'Discover' },
       { to: '/chat', label: 'Chat' },
       { to: '/profile', label: 'My Profile' }
     ];
-  }, [isAuthenticated]);
+  }, [hasProfile, isAuthenticated]);
 
   const handleNavClick = (link) => {
     if (link.hash) {
@@ -225,7 +234,10 @@ export default function Navbar({ hideAuthButtons = false }) {
   // ✅ SINGLE handleLogout declaration
   const handleLogout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('profileComplete');
+    localStorage.removeItem('profileData');
     setIsAuthenticated(false);
+    setHasProfile(false);
     navigate('/auth?mode=login');
   };
 

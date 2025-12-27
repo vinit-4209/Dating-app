@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Upload, X } from 'lucide-react';
 import Navbar from '../components/Navbar';
-import { saveProfile } from '../utils/api';
+import { getProfile, saveProfile } from '../utils/api';
 
 export default function CreateProfile() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -10,6 +10,7 @@ export default function CreateProfile() {
   const [photos, setPhotos] = useState([]);
   const [status, setStatus] = useState('');
   const [locationStatus, setLocationStatus] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -27,8 +28,101 @@ export default function CreateProfile() {
   });
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const saved = localStorage.getItem('profileData');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setFormData((prev) => ({
+          ...prev,
+          name: parsed.name ?? prev.name,
+          age: parsed.age ?? prev.age,
+          city: parsed.city ?? prev.city,
+          pronouns: parsed.pronouns ?? prev.pronouns,
+          bio: parsed.bio ?? prev.bio,
+          interests: parsed.interests ?? prev.interests,
+          interestsText: parsed.interests?.join(', ') || prev.interestsText,
+          lookingFor: parsed.lookingFor ?? prev.lookingFor,
+          height: parsed.height ?? prev.height,
+          education: parsed.education ?? prev.education,
+          occupation: parsed.occupation ?? prev.occupation,
+          latitude: parsed.location?.latitude ?? parsed.latitude ?? prev.latitude,
+          longitude: parsed.location?.longitude ?? parsed.longitude ?? prev.longitude
+        }));
+        if (parsed.photos?.length) {
+          setPhotos(
+            parsed.photos.map((photo) => ({
+              id: Date.now() + Math.random(),
+              url: typeof photo === 'string' ? photo : photo.url
+            }))
+          );
+        }
+      } catch (error) {
+        console.error('Unable to parse saved profile', error);
+      }
+    }
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      return;
+    }
+
+    getProfile()
+      .then(({ profile }) => {
+        if (!profile) {
+          localStorage.removeItem('profileComplete');
+          return;
+        }
+
+      localStorage.setItem('profileComplete', 'true');
+      setIsEditing(true);
+
+      const existingPhotos = (profile.photos || []).map((photo) => {
+        const url = typeof photo === 'string' ? photo : photo.url;
+        return { id: Date.now() + Math.random(), url };
+      });
+
+      const location = profile.location || {};
+        const latitude =
+          typeof location.latitude === 'number'
+            ? location.latitude
+            : Array.isArray(location.coordinates)
+            ? location.coordinates[1]
+            : '';
+        const longitude =
+          typeof location.longitude === 'number'
+            ? location.longitude
+            : Array.isArray(location.coordinates)
+            ? location.coordinates[0]
+            : '';
+
+        setFormData((prev) => ({
+          ...prev,
+          name: profile.name ?? prev.name,
+          age: profile.age ?? prev.age,
+          city: profile.city ?? prev.city,
+          pronouns: profile.pronouns ?? prev.pronouns,
+          bio: profile.bio ?? prev.bio,
+          interests: profile.interests ?? prev.interests,
+          interestsText: profile.interests?.join(', ') || prev.interestsText,
+          lookingFor: profile.lookingFor ?? prev.lookingFor,
+          height: profile.height ?? prev.height,
+          education: profile.education ?? prev.education,
+          occupation: profile.occupation ?? prev.occupation,
+          latitude: latitude ?? '',
+          longitude: longitude ?? ''
+        }));
+        setPhotos(existingPhotos);
+      })
+      .catch(() => {
+        setStatus('Unable to load your profile details. You can still edit and save.');
+      });
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('profileComplete');
+    localStorage.removeItem('profileData');
     navigate('/auth?mode=login');
   };
 
@@ -182,10 +276,12 @@ export default function CreateProfile() {
       saveProfile(payload)
         .then(() => {
           setStatus('Profile saved to the server.');
+          localStorage.setItem('profileComplete', 'true');
           navigate('/discover');
         })
         .catch(() => {
           setStatus('Saved locally, but unable to reach the server.');
+          localStorage.setItem('profileComplete', 'true');
           navigate('/discover');
         });
     } else {
@@ -208,7 +304,9 @@ export default function CreateProfile() {
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Create your profile</h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              {isEditing ? 'Edit your profile' : 'Create your profile'}
+            </h1>
             <p className="text-gray-500 text-lg">Step {currentStep} of {totalSteps}</p>
           </div>
           <div className="flex flex-wrap gap-3">

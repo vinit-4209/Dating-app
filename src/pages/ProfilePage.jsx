@@ -156,11 +156,14 @@ export default function ProfilePage() {
               </div>
               {profile.photos?.length ? (
                 <div className="grid grid-cols-2 gap-3">
-                  {profile.photos.map((photo, idx) => (
-                    <div key={`${photo}-${idx}`} className="aspect-square rounded-2xl overflow-hidden">
-                      <img src={photo} alt={`Profile ${idx + 1}`} className="w-full h-full object-cover" />
+                  {profile.photos.map((photo, idx) => {
+                    const photoUrl = typeof photo === 'string' ? photo : photo.url;
+                    return (
+                    <div key={`${photoUrl}-${idx}`} className="aspect-square rounded-2xl overflow-hidden">
+                      <img src={photoUrl} alt={`Profile ${idx + 1}`} className="w-full h-full object-cover" />
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               ) : (
                 <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center text-gray-500 text-sm">

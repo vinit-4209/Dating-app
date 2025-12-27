@@ -44,6 +44,14 @@ const ProfileSchema = new mongoose.Schema(
       unique: true
     },
 
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true
+    },
+
     name: { type: String, default: '' },
 
     age: { type: Number, min: 18, max: 100 },
