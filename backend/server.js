@@ -263,6 +263,7 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ message: "Incorrect password." });
     }
 
+    const hasProfile = await Profile.exists({ userId: user._id });
     const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, {
       expiresIn: "1h",
     });
@@ -271,6 +272,7 @@ app.post("/api/auth/login", async (req, res) => {
       message: "Login successful.",
       token,
       user: { id: user._id, name: user.name, email: user.email },
+      hasProfile: Boolean(hasProfile),
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -326,6 +328,7 @@ app.post("/api/profile", requireAuth, async (req, res) => {
         ? resolvedPhotos
         : existingProfile?.photos || [],
       userId: req.user.id,
+      email: req.user.email,
     };
 
     const profile = await Profile.findOneAndUpdate(

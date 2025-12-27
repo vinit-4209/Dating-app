@@ -96,8 +96,14 @@ export default function AuthPage() {
       }
 
       localStorage.setItem('authToken', data.token);
+      if (data.hasProfile) {
+        localStorage.setItem('profileComplete', 'true');
+      } else {
+        localStorage.removeItem('profileComplete');
+        localStorage.removeItem('profileData');
+      }
       setStatus({ type: 'success', message: 'Login successful.' });
-      navigate('/create-profile');
+      navigate(data.hasProfile ? '/discover' : '/create-profile');
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     } finally {
