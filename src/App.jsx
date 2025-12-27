@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
 import ProfileCreation from './pages/ProfileCreation';
+import ProfileEdit from './pages/ProfileEdit';
 import VerifyEmail from './pages/VerifyEmail';
 import DiscoverPage from './pages/DiscoverPage';
 import ProfilePage from './pages/ProfilePage';
@@ -15,6 +16,7 @@ function App() {
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/verify" element={<VerifyEmail />} />
         <Route path="/create-profile" element={<ProfileCreation />} />
+        <Route path="/edit-profile" element={<ProfileEdit />} />
         <Route path="/discover" element={<DiscoverPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/chat" element={<ChatPage />} />
