@@ -389,23 +389,51 @@ app.get("/api/match", requireAuth, async (req, res) => {
   }
 });
 
+// app.post("/api/match/request", requireAuth, async (req, res) => {
+//   try {
+//     const { targetId } = req.body;
+//     if (!targetId) {
+//       return res.status(400).json({ message: "Target profile required." });
+//     }
+
+//     const existing = await Match.findOne({
+//       participants: { $all: [req.user.id, targetId] },
+//     });
+//     if (existing) {
+//       return res.json({ match: existing, message: "Match already exists." });
+//     }
+
+//     const match = await Match.create({
+//       participants: [req.user.id, targetId],
+//       status: "pending",
+//       requestedBy: req.user.id,
+//     });
+
+//     res.json({ match, message: "Request sent." });
+//   } catch (error) {
+//     console.error("Request match error:", error);
+//     res.status(500).json({ message: "Unable to send request." });
+//   }
+// });
+
 app.post("/api/match/request", requireAuth, async (req, res) => {
   try {
     const { targetId } = req.body;
-    if (!targetId) {
-      return res.status(400).json({ message: "Target profile required." });
+
+    if (!targetId || !mongoose.Types.ObjectId.isValid(targetId)) {
+      return res.status(400).json({ message: "Invalid target user ID" });
     }
 
     const existing = await Match.findOne({
       participants: { $all: [req.user.id, targetId] },
     });
+
     if (existing) {
       return res.json({ match: existing, message: "Match already exists." });
     }
 
     const match = await Match.create({
       participants: [req.user.id, targetId],
-      status: "pending",
       requestedBy: req.user.id,
     });
 
@@ -415,6 +443,7 @@ app.post("/api/match/request", requireAuth, async (req, res) => {
     res.status(500).json({ message: "Unable to send request." });
   }
 });
+
 
 app.post("/api/match/respond", requireAuth, async (req, res) => {
   try {
