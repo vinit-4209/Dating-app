@@ -6,7 +6,7 @@ import { getProfile, saveProfile } from '../utils/api';
 
 export default function CreateProfile() {
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 3;
+  const totalSteps = 1;
   const [photos, setPhotos] = useState([]);
   const [status, setStatus] = useState('');
   const [locationStatus, setLocationStatus] = useState('');
@@ -244,7 +244,7 @@ export default function CreateProfile() {
 
   const handleNext = () => {
     if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
+      setCurrentStep((prev) => prev + 1);
       return;
     }
 

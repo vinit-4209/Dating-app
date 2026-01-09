@@ -87,6 +87,10 @@ async function resolveProfilePhotos(photos = []) {
   }
 
   const uploads = photos.map(async (photo) => {
+    if (photo && typeof photo === "object" && typeof photo.url === "string") {
+      photo = photo.url;
+    }
+
     if (typeof photo !== "string") {
       return null;
     }
@@ -320,13 +324,18 @@ app.post("/api/profile", requireAuth, async (req, res) => {
 
     const existingProfile = await Profile.findOne({ userId: req.user.id });
     const resolvedPhotos = await resolveProfilePhotos(photos);
+    const existingPhotoUrls = Array.isArray(existingProfile?.photos)
+      ? existingProfile.photos
+          .map((photo) => (typeof photo === "string" ? photo : photo?.url))
+          .filter(Boolean)
+      : [];
 
     const mergedProfileData = {
       ...(existingProfile?.toObject() || {}),
       ...payload,
       photos: resolvedPhotos.length
         ? resolvedPhotos
-        : existingProfile?.photos || [],
+        : existingPhotoUrls,
       userId: req.user.id,
       email: req.user.email,
     };

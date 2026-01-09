@@ -27,14 +27,6 @@
 
 import mongoose from 'mongoose';
 
-const PhotoSchema = new mongoose.Schema(
-  {
-    url: { type: String, required: true },
-    publicId: { type: String, required: true }
-  },
-  { _id: false }
-);
-
 const ProfileSchema = new mongoose.Schema(
   {
     userId: {
@@ -69,7 +61,7 @@ const ProfileSchema = new mongoose.Schema(
     },
 
     photos: {
-      type: [PhotoSchema],
+      type: [String],
       default: []
     },
 
