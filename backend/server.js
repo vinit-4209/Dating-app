@@ -18,8 +18,18 @@ const DEMO_EMAIL_VERIFICATION = process.env.DEMO_EMAIL_VERIFICATION === "true"; 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
+// const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+if (!process.env.CLIENT_URL) {
+  throw new Error("CLIENT_URL is not defined");
+}
+const CLIENT_URL = process.env.CLIENT_URL;
+
+// const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined");
+}
+const JWT_SECRET = process.env.JWT_SECRET;
+
 const CLOUDINARY_CONFIGURED = Boolean(
   process.env.CLOUDINARY_CLOUD_NAME &&
     process.env.CLOUDINARY_API_KEY &&
@@ -35,10 +45,16 @@ if (CLOUDINARY_CONFIGURED) {
 }
 
 app.use(
+  // cors({
+  //   origin: CLIENT_URL,
+  //   credentials: true,
+  // })
   cors({
-    origin: CLIENT_URL,
-    credentials: true,
-  })
+  origin: [CLIENT_URL],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+})
+
 );
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -66,7 +82,8 @@ async function connectDB() {
     //   useNewUrlParser: true,
     //   useUnifiedTopology: true
     // });
-    mongoose.connect(process.env.MONGODB_URI);
+    // mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI);
 
     console.log("Connected to MongoDB");
   } catch (error) {
@@ -524,6 +541,12 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
   console.log("Health check OK");
 });
+
+// connectDB().then(() => {
+//   app.listen(PORT, () => {
+//     console.log(`Server running on port ${PORT}`);
+//   });
+// });
 
 connectDB().then(() => {
   app.listen(PORT, () => {
